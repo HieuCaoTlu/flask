@@ -6,6 +6,7 @@ import onnxruntime
 from transformers import AutoTokenizer
 from underthesea import word_tokenize
 from flask import Flask, request, jsonify
+import requests
 
 logging.getLogger("transformers").setLevel(logging.ERROR)
 
@@ -18,6 +19,19 @@ onnx_file_path = os.path.join(destination_folder, "phobert_quantized.onnx")
 label_map = {0: 'Angry', 1: 'Happy', 2: 'InLove', 3: 'Neutral', 4: 'Sad', 5: 'Worry'}
 tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base", use_fast=False)
 onnx_model_path = "phobert_quantized.onnx"
+url = 'https://thanglongedu-my.sharepoint.com/:u:/g/personal/a44212_thanglong_edu_vn/ESdkpmkSmpZNh37XXbGG-HcBM2DTT0LBfsKAaUaSKKK5pg?download=1'
+
+if not os.path.exists(file_zip):
+    print("File ZIP chưa tồn tại, đang tải về...")
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(file_zip, 'wb') as f:
+            f.write(response.content)
+        print("Tải file thành công.")
+    else:
+        print(f"Không thể tải file, mã trạng thái: {response.status_code}")
+else:
+    print("File ZIP đã tồn tại.")
 
 if not os.path.exists(onnx_file_path):
     with zipfile.ZipFile(file_zip, 'r') as zip_ref:
