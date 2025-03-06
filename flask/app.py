@@ -1,49 +1,74 @@
-from flask import Flask, jsonify, request, render_template_string
+import logging
+import os
+import numpy as np
+import zipfile
+import onnxruntime
+from transformers import AutoTokenizer
+from underthesea import word_tokenize
+from flask import Flask, request, jsonify
 
+logging.getLogger("transformers").setLevel(logging.ERROR)
+
+# Khởi tạo Flask app
 app = Flask(__name__)
 
-# A simple in-memory structure to store tasks
-tasks = []
+file_zip = "phobert_quantized.zip"
+destination_folder = os.path.dirname(file_zip)
+onnx_file_path = os.path.join(destination_folder, "phobert_quantized.onnx")
+label_map = {0: 'Angry', 1: 'Happy', 2: 'InLove', 3: 'Neutral', 4: 'Sad', 5: 'Worry'}
+tokenizer = AutoTokenizer.from_pretrained("vinai/phobert-base", use_fast=False)
+onnx_model_path = "phobert_quantized.onnx"
 
-@app.route('/', methods=['GET'])
-def home():
-    # Display existing tasks and a form to add a new task
-    html = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Todo List</title>
-</head>
-<body>
-    <h1>Todo List</h1>
-    <form action="/add" method="POST">
-        <input type="text" name="task" placeholder="Enter a new task">
-        <input type="submit" value="Add Task">
-    </form>
-    <ul>
-        {% for task in tasks %}
-        <li>{{ task }} <a href="/delete/{{ loop.index0 }}">x</a></li>
-        {% endfor %}
-    </ul>
-</body>
-</html>
-'''
-    return render_template_string(html, tasks=tasks)
+if not os.path.exists(onnx_file_path):
+    with zipfile.ZipFile(file_zip, 'r') as zip_ref:
+        zip_ref.extractall(destination_folder)
+    print("Đã giải nén file.")
+else:
+    print("File phobert_quantized.onnx đã tồn tại, không cần giải nén.")
 
-@app.route('/add', methods=['POST'])
-def add_task():
-    # Add a new task from the form data
-    task = request.form.get('task')
-    if task:
-        tasks.append(task)
-    return home()
+ort_session = onnxruntime.InferenceSession(onnx_model_path)
 
-@app.route('/delete/<int:index>', methods=['GET'])
-def delete_task(index):
-    # Delete a task based on its index
-    if index < len(tasks):
-        tasks.pop(index)
-    return home()
+def encode_text(text):
+    tokenized_text = word_tokenize(text, format="text")
+    encoding = tokenizer(tokenized_text, truncation=True, padding=True, max_length=128)
+    return {
+        "input_ids": np.array(encoding["input_ids"]),  
+        "attention_mask": np.array(encoding["attention_mask"])
+    }
+
+def softmax(logits):
+    exp_logits = np.exp(logits - np.max(logits))  # Tránh overflow
+    return np.round(exp_logits / np.sum(exp_logits),2)
+
+def predict_onnx(text):
+    encoded_text = encode_text(text.lower())
+    input_ids_np = np.array([encoded_text['input_ids']], dtype=np.int64)
+    attention_mask_np = np.array([encoded_text['attention_mask']], dtype=np.int64)
+    ort_outputs = ort_session.run(["logits"], {"input_ids": input_ids_np, "attention_mask": attention_mask_np})
+    predicted_class = np.argmax(ort_outputs[0], axis=1)[0]
+    logits = ort_outputs[0][0]
+    softmax_values = softmax(logits)
+    possibilities = [{label_map[i]: float(softmax_values[i]) for i in range(len(softmax_values))}]
+    return label_map[predicted_class], possibilities
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        text = data.get("text", "")
+        
+        if not text:
+            return jsonify({"error": "Text is required"}), 400
+        
+        predicted_label, possibilities = predict_onnx(text)
+        result = {
+            "result": predicted_label,
+            "possibilities": possibilities
+        }
+        return jsonify(result)
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
