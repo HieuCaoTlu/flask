@@ -65,8 +65,21 @@ def predict_onnx(text):
     possibilities = [{label_map[i]: float(softmax_values[i]) for i in range(len(softmax_values))}]
     return label_map[predicted_class], possibilities
 
-@app.route('/predict', methods=['POST'])
+def _build_cors_preflight_response():
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add('Access-Control-Allow-Headers', "*")
+    response.headers.add('Access-Control-Allow-Methods', "*")
+    return response
+
+def _corsify_actual_response(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
+
+@app.route('/predict', methods=['POST','OPTIONS'])
 def predict():
+    if request.method == "OPTIONS":
+        return _build_cors_preflight_response()
     try:
         data = request.json
         text = data.get("text", "")
@@ -79,10 +92,10 @@ def predict():
             "result": predicted_label,
             "possibilities": possibilities
         }
-        return jsonify(result)
+        return _corsify_actual_response(jsonify(result))
     
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return _corsify_actual_response(jsonify({"error": str(e)})), 500
 
 @app.route('/', methods=['GET'])
 def home():
