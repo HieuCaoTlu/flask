@@ -12,7 +12,12 @@ logging.getLogger("transformers").setLevel(logging.ERROR)
 
 # Khởi tạo Flask app
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+@app.before_request
+def handle_options():
+    if request.method == "OPTIONS":
+        return '', 200
 
 file_zip = "phobert_quantized.zip"
 destination_folder = os.path.dirname(file_zip)
@@ -66,7 +71,7 @@ def predict_onnx(text):
     possibilities = [{label_map[i]: float(softmax_values[i]) for i in range(len(softmax_values))}]
     return label_map[predicted_class], possibilities
 
-@app.route('/predict', methods=['POST','OPTIONS'])
+@app.route('/predict', methods=['POST'])
 def predict():
     try:
         data = request.json
