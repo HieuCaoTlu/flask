@@ -78,7 +78,7 @@ def predict():
         text = data.get("text", "")
         
         if not text:
-            return jsonify({"error": "Text is required"}), 400
+            return jsonify({"error": "Bạn cần nhập text"}), 400
         
         predicted_label, possibilities = predict_onnx(text)
         result = {
