@@ -20,7 +20,7 @@ def handle_options():
         return '', 200
 
 print("Phiên bản ổn định 2.0")
-file_zip = "phobert_quantized.zip"
+file_zip = "phobert_quantized3.zip"
 destination_folder = os.path.dirname(file_zip)
 onnx_file_path = os.path.join(destination_folder, "phobert_quantized.onnx")
 label_map = {0: 'Angry', 1: 'Happy', 2: 'InLove', 3: 'Neutral', 4: 'Sad', 5: 'Worry'}
