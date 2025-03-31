@@ -34,7 +34,7 @@ if not os.path.exists(file_zip):
     if response.status_code == 200:
         with open(file_zip, 'wb') as f:
             f.write(response.content)
-        print("Tải file thành công.")
+        print("Tải file thành công!.")
     else:
         print(f"Không thể tải file, mã trạng thái: {response.status_code}")
 else:
