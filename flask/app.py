@@ -29,7 +29,7 @@ onnx_model_path = f"{model_name}.onnx"
 url = 'https://thanglongedu-my.sharepoint.com/:u:/g/personal/a44212_thanglong_edu_vn/ESdkpmkSmpZNh37XXbGG-HcBM2DTT0LBfsKAaUaSKKK5pg?download=1'
 
 if not os.path.exists(file_zip):
-    print("File ZIP chưa tồn tại, đang tải về nè ba...")
+    print("File ZIP chưa tồn tại, đang tải về nè mom...")
     response = requests.get(url)
     if response.status_code == 200:
         with open(file_zip, 'wb') as f:
